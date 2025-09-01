@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Collatz Game – Random Challenge + AutoPlay + Score (Mobile Fix)</title>
+  <title>Collatz Game – Random Challenge + AutoPlay + Score (Mobile Fix v2)</title>
   <style>
     :root{--bg:#0f172a;--panel:#0b1220;--text:#e5e7eb;--muted:#94a3b8;--accent:#38bdf8;}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Helvetica Neue",Arial}
@@ -62,7 +62,8 @@
 <script>
 (function(){
   const $=s=>document.querySelector(s);
-  let n=null,steps=0,rafId=null,playing=false,seedVal=null,peak=null;
+  let n=null,steps=0,seedVal=null,peak=null;
+  let intervalId=null, playing=false;
   const seqEl=$("#sequence"),info=$("#info"),scoreBox=$("#scoreBox"),status=$("#status");
 
   function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
@@ -98,7 +99,7 @@
     $("#stepBtn").disabled=false;
     $("#autoBtn").disabled=false;
     $("#autoBtn").textContent="Auto Play";
-    playing=false; if(rafId) cancelAnimationFrame(rafId);
+    stopAuto(); // 既存ループがあれば停止
     updateScore();
     status.textContent="Running…";
   }
@@ -118,26 +119,35 @@
     $("#autoBtn").disabled=true;
   }
 
-  function autoPlay(){
-    if(playing){ stopAuto(); return; }
-    playing=true; $("#autoBtn").textContent="Pause";
-    function tick(){
-      if(!playing) return;
+  function startAuto(){
+    if(playing) return;
+    playing=true;
+    $("#autoBtn").textContent="Pause";
+    // setIntervalで安定した自動進行（200ms間隔）
+    intervalId = setInterval(()=>{
+      if(!playing){ clearInterval(intervalId); intervalId=null; return; }
       step();
-      if(n!==1){ rafId=requestAnimationFrame(()=>setTimeout(tick,200)); }
-    }
-    tick();
+    }, 200);
   }
-  function stopAuto(){ playing=false; $("#autoBtn").textContent="Auto Play"; if(rafId) cancelAnimationFrame(rafId); }
+  function stopAuto(){
+    playing=false;
+    $("#autoBtn").textContent="Auto Play";
+    if(intervalId){ clearInterval(intervalId); intervalId=null; }
+  }
+  function toggleAuto(){
+    if(n==null){ alert("先に Start してください"); return; }
+    if(n===1){ finish(); return; }
+    if(playing) stopAuto(); else startAuto();
+  }
 
+  // --- Event bindings: ONLY 'pointerup' to avoid double fire on iOS (click+pointer)
   const bind=(id,fn)=>{
     const el=$(id);
-    el.addEventListener("pointerup", fn, {passive:true});
-    el.addEventListener("click", fn, {passive:true});
+    el.addEventListener("pointerup", (e)=>{ e.preventDefault(); fn(e); }, {passive:false});
   };
   bind("#startBtn", start);
   bind("#stepBtn", step);
-  bind("#autoBtn", autoPlay);
+  bind("#autoBtn", toggleAuto);
   bind("#randBtn", ()=>{
     const d=parseInt($("#digits").value,10)||2;
     $("#seed").value = String(mkRandomByDigits(d));
