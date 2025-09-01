@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Collatz Game – Random Challenge + AutoPlay + Score</title>
+  <style>
+    body{margin:0;padding:20px;background:#0f172a;color:#e5e7eb;font-family:sans-serif}
+    .btn{margin:5px;padding:8px 12px;border-radius:6px;border:1px solid #444;background:#222;color:#fff;cursor:pointer}
+    .seq{margin-top:10px;display:flex;flex-wrap:wrap;gap:5px}
+    .badge{padding:4px 6px;border-radius:4px;background:#333}
+    .pill{display:inline-block;margin:5px;padding:4px 8px;background:#1e293b;border-radius:8px}
+  </style>
+</head>
+<body>
+  <h1>Collatz Game – Random Challenge + AutoPlay + Score</h1>
+  <p>偶数なら n/2、奇数なら 3n+1。1に到達するまで続けるゲーム。</p>
+
+  <label>モード: 
+    <select id="mode">
+      <option value="classic">Classic</option>
+      <option value="random">Random Challenge</option>
+    </select>
+  </label>
+  <label>桁数:
+    <select id="digits">
+      <option value="1">1桁</option>
+      <option value="2" selected>2桁</option>
+      <option value="3">3桁</option>
+    </select>
+  </label>
+  <button class="btn" id="randBtn">Random Challenge!</button>
+  <br><br>
+
+  <input id="seed" type="text" placeholder="開始値を入力" />
+  <button class="btn" id="startBtn">Start</button>
+  <button class="btn" id="stepBtn" disabled>Next Step</button>
+  <button class="btn" id="autoBtn" disabled>Auto Play</button>
+
+  <div id="info" class="pill">開始値: –</div>
+  <div id="scoreBox" class="pill">スコア: 0</div>
+  <div class="seq" id="sequence"></div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  let n=null,steps=0,rafId=null,playing=false,seedVal=null,peak=null;
+  const seqEl=$("#sequence"),info=$("#info"),scoreBox=$("#scoreBox");
+
+  function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+  function mkRandomByDigits(d){
+    const lo=(d===1?1:Math.pow(10,d-1)),hi=Math.pow(10,d)-1;
+    return randInt(lo,hi);
+  }
+  function digitsOf(x){return Math.floor(Math.log10(Math.max(1,x)))+1;}
+
+  function calcScore(){
+    if(!seedVal)return 0;
+    const d=digitsOf(seedVal);
+    const h=(d==1?1.5:d==2?1.25:d==3?1.0:0.75);
+    const base=steps*10*h;
+    const bonus=Math.floor((peak||seedVal)/seedVal)*5;
+    return Math.round(base+bonus);
+  }
+
+  function updateScore(){scoreBox.textContent="スコア: "+calcScore();}
+
+  function start(){
+    let seed=parseInt($("#seed").value);
+    if(isNaN(seed)||seed<=0){alert("正の整数を入れてください");return;}
+    seedVal=seed;n=seed;steps=0;peak=seed;seqEl.innerHTML="";
+    info.textContent=`開始値: ${n}`;
+    addBadge(n);
+    $("#stepBtn").disabled=false;$("#autoBtn").disabled=false;
+    updateScore();
+  }
+  function step(){
+    if(n===1){info.textContent+=` | 終了 (steps=${steps}, score=${calcScore()})`;stopAuto();$("#stepBtn").disabled=true;$("#autoBtn").disabled=true;return;}
+    n=(n%2===0)?n/2:3*n+1;steps++;if(n>peak)peak=n;
+    addBadge(n);updateScore();
+  }
+  function addBadge(v){
+    const b=document.createElement("div");b.className="badge";b.textContent=v;seqEl.appendChild(b);
+  }
+
+  function autoPlay(){
+    if(playing){stopAuto();return;}
+    playing=true;$("#autoBtn").textContent="Pause";
+    function tick(){
+      if(!playing)return;
+      step();
+      if(n!==1){rafId=requestAnimationFrame(()=>setTimeout(tick,200));}
+    }
+    tick();
+  }
+  function stopAuto(){playing=false;$("#autoBtn").textContent="Auto Play";if(rafId)cancelAnimationFrame(rafId);}
+
+  $("#startBtn").onclick=start;
+  $("#stepBtn").onclick=step;
+  $("#autoBtn").onclick=autoPlay;
+  $("#randBtn").onclick=()=>{
+    const d=parseInt($("#digits").value);const r=mkRandomByDigits(d);
+    $("#seed").value=r;start();
+  };
+})();
+</script>
+</body>
+</html>
