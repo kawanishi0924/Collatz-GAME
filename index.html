@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Collatz Game – Random Challenge + AutoPlay + Score (Mobile Fix v2)</title>
+  <title>Collatz Game – Random Challenge + AutoPlay + Score (Patched)</title>
   <style>
     :root{--bg:#0f172a;--panel:#0b1220;--text:#e5e7eb;--muted:#94a3b8;--accent:#38bdf8;}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Helvetica Neue",Arial}
@@ -63,7 +63,7 @@
 (function(){
   const $=s=>document.querySelector(s);
   let n=null,steps=0,seedVal=null,peak=null;
-  let intervalId=null, playing=false;
+  let playing=false, intervalId=null;
   const seqEl=$("#sequence"),info=$("#info"),scoreBox=$("#scoreBox"),status=$("#status");
 
   function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
@@ -89,7 +89,7 @@
   }
 
   function start(){
-    $("#seed").blur();
+    $("#seed").blur(); // iOS: avoid focus issues
     const raw=($("#seed").value||"").trim().replace(/[^\d]/g,"");
     const seed=parseInt(raw,10);
     if(!Number.isInteger(seed)||seed<=0){ alert("正の整数を入れてください"); return; }
@@ -99,7 +99,7 @@
     $("#stepBtn").disabled=false;
     $("#autoBtn").disabled=false;
     $("#autoBtn").textContent="Auto Play";
-    stopAuto(); // 既存ループがあれば停止
+    stopAuto(); // ensure no residual loop
     updateScore();
     status.textContent="Running…";
   }
@@ -123,7 +123,6 @@
     if(playing) return;
     playing=true;
     $("#autoBtn").textContent="Pause";
-    // setIntervalで安定した自動進行（200ms間隔）
     intervalId = setInterval(()=>{
       if(!playing){ clearInterval(intervalId); intervalId=null; return; }
       step();
@@ -140,7 +139,7 @@
     if(playing) stopAuto(); else startAuto();
   }
 
-  // --- Event bindings: ONLY 'pointerup' to avoid double fire on iOS (click+pointer)
+  // Bind ONLY pointerup with preventDefault to avoid double fire on iOS
   const bind=(id,fn)=>{
     const el=$(id);
     el.addEventListener("pointerup", (e)=>{ e.preventDefault(); fn(e); }, {passive:false});
