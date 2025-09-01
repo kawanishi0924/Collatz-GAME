@@ -3,105 +3,155 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Collatz Game – Random Challenge + AutoPlay + Score</title>
+  <title>Collatz Game – Random Challenge + AutoPlay + Score (Mobile Fix)</title>
   <style>
-    body{margin:0;padding:20px;background:#0f172a;color:#e5e7eb;font-family:sans-serif}
-    .btn{margin:5px;padding:8px 12px;border-radius:6px;border:1px solid #444;background:#222;color:#fff;cursor:pointer}
-    .seq{margin-top:10px;display:flex;flex-wrap:wrap;gap:5px}
-    .badge{padding:4px 6px;border-radius:4px;background:#333}
-    .pill{display:inline-block;margin:5px;padding:4px 8px;background:#1e293b;border-radius:8px}
+    :root{--bg:#0f172a;--panel:#0b1220;--text:#e5e7eb;--muted:#94a3b8;--accent:#38bdf8;}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Helvetica Neue",Arial}
+    .wrap{padding:20px;min-height:100vh;min-height:100dvh;display:block}
+    .btn{margin:5px;padding:10px 14px;border-radius:10px;border:1px solid #3f3f46;background:#18181b;color:#fff;cursor:pointer;
+         -webkit-appearance:none;appearance:none;touch-action:manipulation;pointer-events:auto;user-select:none}
+    .btn:active{transform:translateY(1px)}
+    label,select,input{font-size:16px}
+    input[type="text"]{padding:10px 12px;border-radius:10px;border:1px solid #3f3f46;background:#0b1220;color:#e5e7eb;outline:none}
+    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;z-index:10;position:relative}
+    .seq{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;padding-bottom:8px}
+    .badge{padding:6px 8px;border-radius:8px;background:#333;font-variant-numeric:tabular-nums}
+    .pill{display:inline-block;margin:6px 6px 0 0;padding:6px 10px;background:#1e293b;border-radius:999px;color:#cbd5e1}
+    .click-guard{position:relative;z-index:5;pointer-events:none}
+    .click-guard *{pointer-events:auto}
   </style>
 </head>
 <body>
-  <h1>Collatz Game – Random Challenge + AutoPlay + Score</h1>
-  <p>偶数なら n/2、奇数なら 3n+1。1に到達するまで続けるゲーム。</p>
+  <div class="wrap">
+    <h1>Collatz Game – Random Challenge + AutoPlay + Score</h1>
+    <p class="pill">偶数なら n/2、奇数なら 3n+1。1に到達するまで続けるゲーム。</p>
 
-  <label>モード: 
-    <select id="mode">
-      <option value="classic">Classic</option>
-      <option value="random">Random Challenge</option>
-    </select>
-  </label>
-  <label>桁数:
-    <select id="digits">
-      <option value="1">1桁</option>
-      <option value="2" selected>2桁</option>
-      <option value="3">3桁</option>
-    </select>
-  </label>
-  <button class="btn" id="randBtn">Random Challenge!</button>
-  <br><br>
+    <div class="row click-guard">
+      <label>モード: 
+        <select id="mode">
+          <option value="classic">Classic</option>
+          <option value="random">Random Challenge</option>
+        </select>
+      </label>
+      <label>桁数:
+        <select id="digits">
+          <option value="1">1桁</option>
+          <option value="2" selected>2桁</option>
+          <option value="3">3桁</option>
+        </select>
+      </label>
+      <button type="button" class="btn" id="randBtn">Random Challenge!</button>
+    </div>
 
-  <input id="seed" type="text" placeholder="開始値を入力" />
-  <button class="btn" id="startBtn">Start</button>
-  <button class="btn" id="stepBtn" disabled>Next Step</button>
-  <button class="btn" id="autoBtn" disabled>Auto Play</button>
+    <div class="row click-guard" style="margin-top:6px">
+      <input id="seed" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="開始値を入力（例: 27）" />
+      <button type="button" class="btn" id="startBtn">Start</button>
+      <button type="button" class="btn" id="stepBtn" disabled>Next Step</button>
+      <button type="button" class="btn" id="autoBtn" disabled>Auto Play</button>
+    </div>
 
-  <div id="info" class="pill">開始値: –</div>
-  <div id="scoreBox" class="pill">スコア: 0</div>
-  <div class="seq" id="sequence"></div>
+    <div class="row" style="margin-top:6px">
+      <div id="info" class="pill">開始値: –</div>
+      <div id="scoreBox" class="pill">スコア: 0</div>
+      <div id="status" class="pill">Ready</div>
+    </div>
+
+    <div class="seq" id="sequence" aria-live="polite"></div>
+  </div>
 
 <script>
 (function(){
   const $=s=>document.querySelector(s);
   let n=null,steps=0,rafId=null,playing=false,seedVal=null,peak=null;
-  const seqEl=$("#sequence"),info=$("#info"),scoreBox=$("#scoreBox");
+  const seqEl=$("#sequence"),info=$("#info"),scoreBox=$("#scoreBox"),status=$("#status");
 
   function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
-  function mkRandomByDigits(d){
-    const lo=(d===1?1:Math.pow(10,d-1)),hi=Math.pow(10,d)-1;
-    return randInt(lo,hi);
-  }
+  function mkRandomByDigits(d){const lo=(d===1?1:10**(d-1)), hi=10**d-1; return randInt(lo,hi);}
   function digitsOf(x){return Math.floor(Math.log10(Math.max(1,x)))+1;}
 
   function calcScore(){
     if(!seedVal)return 0;
     const d=digitsOf(seedVal);
-    const h=(d==1?1.5:d==2?1.25:d==3?1.0:0.75);
+    const h=(d===1?1.5:d===2?1.25:d===3?1.0:0.75);
     const base=steps*10*h;
     const bonus=Math.floor((peak||seedVal)/seedVal)*5;
     return Math.round(base+bonus);
   }
-
   function updateScore(){scoreBox.textContent="スコア: "+calcScore();}
 
+  function addBadge(v){
+    const b=document.createElement("div");
+    b.className="badge";
+    b.textContent=v;
+    seqEl.appendChild(b);
+    seqEl.scrollTo({left:0, top:seqEl.scrollHeight, behavior:"smooth"});
+  }
+
   function start(){
-    let seed=parseInt($("#seed").value);
-    if(isNaN(seed)||seed<=0){alert("正の整数を入れてください");return;}
+    $("#seed").blur();
+    const raw=($("#seed").value||"").trim().replace(/[^\d]/g,"");
+    const seed=parseInt(raw,10);
+    if(!Number.isInteger(seed)||seed<=0){ alert("正の整数を入れてください"); return; }
     seedVal=seed;n=seed;steps=0;peak=seed;seqEl.innerHTML="";
     info.textContent=`開始値: ${n}`;
     addBadge(n);
-    $("#stepBtn").disabled=false;$("#autoBtn").disabled=false;
+    $("#stepBtn").disabled=false;
+    $("#autoBtn").disabled=false;
+    $("#autoBtn").textContent="Auto Play";
+    playing=false; if(rafId) cancelAnimationFrame(rafId);
     updateScore();
+    status.textContent="Running…";
   }
+
   function step(){
-    if(n===1){info.textContent+=` | 終了 (steps=${steps}, score=${calcScore()})`;stopAuto();$("#stepBtn").disabled=true;$("#autoBtn").disabled=true;return;}
-    n=(n%2===0)?n/2:3*n+1;steps++;if(n>peak)peak=n;
-    addBadge(n);updateScore();
+    if(n===1){ finish(); return; }
+    const next=(n%2===0)?n/2:3*n+1;
+    n=next; steps++; if(n>peak) peak=n;
+    addBadge(n); updateScore();
+    if(n===1){ finish(); }
   }
-  function addBadge(v){
-    const b=document.createElement("div");b.className="badge";b.textContent=v;seqEl.appendChild(b);
+
+  function finish(){
+    status.textContent=`Finish: steps=${steps}, score=${calcScore()}`;
+    stopAuto();
+    $("#stepBtn").disabled=true;
+    $("#autoBtn").disabled=true;
   }
 
   function autoPlay(){
-    if(playing){stopAuto();return;}
-    playing=true;$("#autoBtn").textContent="Pause";
+    if(playing){ stopAuto(); return; }
+    playing=true; $("#autoBtn").textContent="Pause";
     function tick(){
-      if(!playing)return;
+      if(!playing) return;
       step();
-      if(n!==1){rafId=requestAnimationFrame(()=>setTimeout(tick,200));}
+      if(n!==1){ rafId=requestAnimationFrame(()=>setTimeout(tick,200)); }
     }
     tick();
   }
-  function stopAuto(){playing=false;$("#autoBtn").textContent="Auto Play";if(rafId)cancelAnimationFrame(rafId);}
+  function stopAuto(){ playing=false; $("#autoBtn").textContent="Auto Play"; if(rafId) cancelAnimationFrame(rafId); }
 
-  $("#startBtn").onclick=start;
-  $("#stepBtn").onclick=step;
-  $("#autoBtn").onclick=autoPlay;
-  $("#randBtn").onclick=()=>{
-    const d=parseInt($("#digits").value);const r=mkRandomByDigits(d);
-    $("#seed").value=r;start();
+  const bind=(id,fn)=>{
+    const el=$(id);
+    el.addEventListener("pointerup", fn, {passive:true});
+    el.addEventListener("click", fn, {passive:true});
   };
+  bind("#startBtn", start);
+  bind("#stepBtn", step);
+  bind("#autoBtn", autoPlay);
+  bind("#randBtn", ()=>{
+    const d=parseInt($("#digits").value,10)||2;
+    $("#seed").value = String(mkRandomByDigits(d));
+    start();
+  });
+
+  $("#seed").addEventListener("input", ()=>{
+    const cleaned=$("#seed").value.replace(/[^\d]/g,"");
+    if(cleaned!==$("#seed").value) $("#seed").value=cleaned;
+  });
+
+  $("#stepBtn").disabled=true;
+  $("#autoBtn").disabled=true;
+  status.textContent="Ready";
 })();
 </script>
 </body>
